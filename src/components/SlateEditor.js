@@ -24,18 +24,23 @@ const SHORTCUTS = {
 };
 
 export const SlateEditor = (props) => {
-  const { placeholder, defaultValue, onChange } = props;
   const [value, setValue] = useState(initialValue);
   const renderElement = useCallback((props) => <Element {...props} />, []);
   const editor = useMemo(
     () => withHistory(withShortcuts(withReact(createEditor()))),
     []
   );
+
+  const handleChange = (value) => {
+    setValue(value);
+    props.onChange(value);
+  };
+
   return (
-    <Slate editor={editor} value={value} onChange={(value) => setValue(value)}>
+    <Slate editor={editor} value={value} onChange={handleChange}>
       <Editable
         renderElement={renderElement}
-        placeholder={placeholder}
+        placeholder={props.Editorplaceholder}
         plugings={[markdown]}
         spellCheck
         autoFocus

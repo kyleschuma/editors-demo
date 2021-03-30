@@ -10,7 +10,7 @@ const parser = markdown.markdownParser(specRegistry);
 const serializer = markdown.markdownSerializer(specRegistry);
 
 export function BangleEditor(props) {
-  const { placeholder, defaultValue, onChange } = props;
+  const { defaultValue, onChange } = props;
 
   const editorState = useEditorState({
     specRegistry,
