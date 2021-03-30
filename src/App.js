@@ -90,14 +90,18 @@ export default function App() {
             onChange={(value) => {
               console.log(value());
             }}
-            onImageUploadStart={(file) => {
-              debugger;
-              console.log(file);
-            }}
+            uploadImage={(file) =>
+              new Promise((accept, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => accept(reader.result);
+                reader.onerror = (error) => reject(error);
+              })
+            }
           />
         );
       case '/slate':
-        return <SlateEditor />;
+        return <SlateEditor onChange={(value) => console.log(value)} />;
       case '/quill':
       default:
         return (
@@ -108,6 +112,23 @@ export default function App() {
             }}
           />
         );
+    }
+  };
+
+  const renderCaption = () => {
+    switch (path) {
+      case '/rich-markdown-editor':
+      case '/slate':
+        return (
+          <caption>
+            Try right clicking the cat, copy image, and paste in the editor.
+          </caption>
+        );
+
+      case '/bangle':
+      case '/quill':
+      default:
+        return <caption>Try dragging the image into the editor</caption>;
     }
   };
 
@@ -142,6 +163,7 @@ export default function App() {
           src="https://welovecatsandkittens.com/wp-content/uploads/2017/03/likes.jpg"
           alt="cat"
         />
+        {renderCaption()}
       </footer>
     </>
   );
