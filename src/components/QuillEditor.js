@@ -11,7 +11,7 @@ export function QuillEditor(props) {
   const container = useRef();
   const [editor, setEditor] = useState();
 
-  const { placeholder, value, onChange } = props;
+  const { placeholder, defaultValue, onChange } = props;
 
   useEffect(() => {
     if (editor) return;
@@ -39,10 +39,10 @@ export function QuillEditor(props) {
   useEffect(() => {
     if (editor === undefined) return;
 
-    if (value) {
-      editor.setText(toDelta(value));
+    if (defaultValue) {
+      editor.setContents(toDelta(defaultValue));
     }
-  }, [editor, value]);
+  }, [editor, defaultValue]);
 
   return <div ref={container} />;
 }

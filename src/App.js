@@ -58,13 +58,12 @@ function foo() {
   console.log('Hello world!')
 }
 \`\`\`
+## Horizontal Break
+---
 
 ## Paragraph
 
 I am a boring paragraph
-
-## Horizontal Break
----
 `;
 
 export default function App() {
@@ -107,6 +106,7 @@ export default function App() {
         return (
           <QuillEditor
             placeholder="Enter some text.."
+            defaultValue={MD}
             onChange={(value) => {
               console.log(value);
             }}
@@ -139,11 +139,11 @@ export default function App() {
           <a className={path === '/quill' ? 'active' : ''} href="/quill">
             Quill
           </a>
-
+          {/* 
           <a className={path === '/slate' ? 'active' : ''} href="/slate">
             Slate
           </a>
-
+          */}
           <a
             className={path === '/rich-markdown-editor' ? 'active' : ''}
             href="/rich-markdown-editor"
