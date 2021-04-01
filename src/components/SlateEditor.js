@@ -1,55 +1,130 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { Slate, Editable, withReact } from 'slate-react';
-import MarkdownPlugin from 'slate-markdown';
-
+import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Editor,
-  Transforms,
-  Range,
-  Point,
   createEditor,
+  Editor,
   Element as SlateElement,
+  Point,
+  Range,
+  Transforms,
 } from 'slate';
 import { withHistory } from 'slate-history';
+import {
+  Editable,
+  Slate,
+  useFocused,
+  useSelected,
+  withReact,
+} from 'slate-react';
 
-const markdown = MarkdownPlugin();
+/* IMAGE RENDER COMPONENT
+ * can control css, props, functions like any react code
+ */
+export const Image = ({ attributes, children, element }) => {
+  const selected = useSelected();
+  const focused = useFocused();
+  return (
+    <div {...attributes}>
+      <div contentEditable={false}>
+        <img
+          src={element.url}
+          alt="idk"
+          style={{
+            display: 'block',
+            maxWidth: '100%',
+            maxHeight: '20em',
+            boxShadow: selected && focused ? '0 0 0 3px #B4D5FF' : 'none',
+          }}
+        />
+      </div>
+      {children}
+    </div>
+  );
+};
 
-const SHORTCUTS = {
+// regex to match a url when pasted into editor
+const isUrl = (string) => {
+  var res = string.match(
+    /(http(s)?:\/\/.)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/g
+  );
+  if (res == null) return false;
+  else return true;
+};
+
+// dummy short list of image extensions
+const imageExtensions = ['jpeg', 'gif', 'png', 'jpg', 'webp'];
+
+const isImageUrl = (url) => {
+  if (!url) return false;
+  if (!isUrl(url)) return false;
+  const ext = new URL(url).pathname.split('.').pop();
+  return imageExtensions.includes(ext);
+};
+
+/* slatejs editor plugin to support images
+ */
+export const withImages = (editor) => {
+  const { insertData, isVoid } = editor;
+
+  editor.isVoid = (element) => {
+    return element.type === 'image' ? true : isVoid(element);
+  };
+
+  editor.insertData = (data) => {
+    const text = data.getData('text/plain');
+    const { files } = data;
+
+    if (files && files.length > 0) {
+      for (const file of files) {
+        const reader = new FileReader();
+        const [mime] = file.type.split('/');
+
+        if (mime === 'image') {
+          reader.addEventListener('load', () => {
+            const url = reader.result;
+            insertImage(editor, url);
+          });
+
+          reader.readAsDataURL(file);
+        }
+      }
+    } else if (isImageUrl(text)) {
+      insertImage(editor, text);
+    } else {
+      insertData(data);
+    }
+  };
+
+  return editor;
+};
+
+const insertImage = (editor, url) => {
+  const text = { text: '' };
+  const image = { type: 'image', url, children: [text] };
+  Transforms.insertNodes(editor, image);
+};
+
+// components/Editor/withMarkdown.js
+
+/* Code reference:
+ * https://github.com/ianstormtaylor/slate/blob/master/site/examples/markdown-shortcuts.tsx
+ */
+
+const MARKDOWN_SHORTCUTS = {
   '*': 'list-item',
-  '**': 'bold-item',
+  '-': 'list-item',
+  '+': 'list-item',
   '>': 'block-quote',
   '#': 'heading-one',
   '##': 'heading-two',
   '###': 'heading-three',
+  '####': 'heading-four',
+  '#####': 'heading-five',
+  '######': 'heading-six',
 };
 
-export const SlateEditor = (props) => {
-  const [value, setValue] = useState(initialValue);
-  const renderElement = useCallback((props) => <Element {...props} />, []);
-  const editor = useMemo(
-    () => withHistory(withShortcuts(withReact(createEditor()))),
-    []
-  );
-
-  const handleChange = (value) => {
-    setValue(value);
-    props.onChange(value);
-  };
-
-  return (
-    <Slate editor={editor} value={value} onChange={handleChange}>
-      <Editable
-        renderElement={renderElement}
-        placeholder={props.Editorplaceholder}
-        plugings={[markdown]}
-        spellCheck
-        autoFocus
-      />
-    </Slate>
-  );
-};
-
-const withShortcuts = (editor) => {
+/* slatejs editor plugin to support markdown shortcuts
+ */
+export const withMarkdownShortcuts = (editor) => {
   const { deleteBackward, insertText } = editor;
 
   editor.insertText = (text) => {
@@ -64,7 +139,7 @@ const withShortcuts = (editor) => {
       const start = Editor.start(editor, path);
       const range = { anchor, focus: start };
       const beforeText = Editor.string(editor, range);
-      const type = SHORTCUTS[beforeText];
+      const type = MARKDOWN_SHORTCUTS[beforeText];
 
       if (type) {
         Transforms.select(editor, range);
@@ -140,12 +215,45 @@ const withShortcuts = (editor) => {
   return editor;
 };
 
-const Element = ({ attributes, children, element }) => {
+export const SlateEditor = (props) => {
+  const { placeholder, onChange } = props;
+
+  // value is current editor data
+  const [value, setValue] = useState(initialValue);
+
+  const renderElement = useCallback((props) => <Element {...props} />, []);
+  const editor = useMemo(
+    () =>
+      withImages(withMarkdownShortcuts(withReact(withHistory(createEditor())))),
+    []
+  );
+
+  return (
+    <Slate
+      editor={editor}
+      value={value}
+      onChange={(value) => {
+        setValue(value);
+        onChange(value);
+      }}
+    >
+      <Editable
+        renderElement={renderElement}
+        placeholder={placeholder}
+        spellCheck
+        autoFocus
+      />
+    </Slate>
+  );
+};
+
+/* Defines all the element types the editor can render
+ * to add a custom react element, see Image as an example
+ */
+const Element = (props) => {
+  const { attributes, children, element } = props;
+
   switch (element.type) {
-    case 'block-quote':
-      return <blockquote {...attributes}>{children}</blockquote>;
-    case 'bulleted-list':
-      return <ul {...attributes}>{children}</ul>;
     case 'heading-one':
       return <h1 {...attributes}>{children}</h1>;
     case 'heading-two':
@@ -158,14 +266,46 @@ const Element = ({ attributes, children, element }) => {
       return <h5 {...attributes}>{children}</h5>;
     case 'heading-six':
       return <h6 {...attributes}>{children}</h6>;
+    case 'block-quote':
+      return <blockquote {...attributes}>{children}</blockquote>;
+    case 'bulleted-list':
+      return <ul {...attributes}>{children}</ul>;
     case 'list-item':
       return <li {...attributes}>{children}</li>;
+    case 'image':
+      return <Image {...props} />;
     default:
       return <p {...attributes}>{children}</p>;
   }
 };
 
+/* Initial data/template for the editor
+ */
 const initialValue = [
+  {
+    type: 'heading-one',
+    children: [{ text: 'Hey H1' }],
+  },
+  {
+    type: 'heading-two',
+    children: [{ text: 'Hey H2' }],
+  },
+  {
+    type: 'heading-three',
+    children: [{ text: 'Hey H3' }],
+  },
+  {
+    type: 'heading-four',
+    children: [{ text: 'Hey H4' }],
+  },
+  {
+    type: 'heading-five',
+    children: [{ text: 'Hey H5' }],
+  },
+  {
+    type: 'paragraph',
+    children: [{ text: '' }],
+  },
   {
     type: 'paragraph',
     children: [
@@ -177,27 +317,36 @@ const initialValue = [
   },
   {
     type: 'block-quote',
-    children: [{ text: 'A wise quote.' }],
+    children: [{ text: 'A block quote. (did not apply the styling yet)' }],
+  },
+  {
+    type: 'list-item',
+    children: [{ text: 'A list item.' }],
+  },
+  {
+    type: 'list-item',
+    children: [{ text: 'Another item.' }],
   },
   {
     type: 'paragraph',
     children: [
       {
         text:
-          'Order when you start a line with "## " you get a level-two heading, like this:',
+          'A paragraph. Try it out for yourself! Try starting a new line with markdown shortcuts like "#" for an H1, "##" for an H2, ">" for a block quote, or "-" for a list item',
       },
     ],
   },
   {
-    type: 'heading-two',
-    children: [{ text: 'Try it out!' }],
+    type: 'image',
+    url: 'https://source.unsplash.com/kFrdX5IeQzI',
+    children: [{ text: '' }],
   },
   {
     type: 'paragraph',
     children: [
       {
         text:
-          'Try it out for yourself! Try starting a new line with ">", "-", or "#"s.',
+          'This example shows images in action. It features two ways to add images. You can either add an image via the toolbar icon above (just kidding, didnt add it yet), or if you want in on a little secret, copy an image URL to your keyboard and paste it anywhere in the editor!',
       },
     ],
   },

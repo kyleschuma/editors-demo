@@ -139,11 +139,9 @@ export default function App() {
           <a className={path === '/quill' ? 'active' : ''} href="/quill">
             Quill
           </a>
-          {/* 
           <a className={path === '/slate' ? 'active' : ''} href="/slate">
             Slate
           </a>
-          */}
           <a
             className={path === '/rich-markdown-editor' ? 'active' : ''}
             href="/rich-markdown-editor"
